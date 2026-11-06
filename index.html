@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OW 대회 통계</title>
+<style>
+:root{
+  --bg:#0f1218; --panel:#171c26; --line:#262d3b; --text:#e8ecf3; --muted:#8b95a7;
+  --accent:#f99e1a; --win:#3ecf8e; --loss:#ef6461; --blue:#4c9ffe;
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#f4f6fa; --panel:#fff; --line:#dde2ec; --text:#18202e; --muted:#667085; --accent:#d97706;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Pretendard","Malgun Gothic",system-ui,sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 0}
+.logo{font-weight:800;font-size:18px;color:var(--accent)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--muted);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--bg);color:var(--text);font-weight:700}
+main{padding:20px 0 60px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+select,input[type=number]{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}
+label.chk{display:flex;gap:6px;align-items:center;color:var(--muted);cursor:pointer}
+button.ghost{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+.spacer{flex:1}
+.notice{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:12px 14px;color:var(--muted);margin-bottom:16px;font-size:14px}
+.notice b{color:var(--accent)}
+h2{margin:0 0 12px;font-size:20px}
+.month{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.month strong{font-size:18px;min-width:120px;text-align:center}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.dow{background:var(--panel);text-align:center;padding:6px;color:var(--muted);font-size:13px}
+.day{background:var(--bg);min-height:96px;padding:6px;font-size:12px}
+.day.today{outline:2px solid var(--accent);outline-offset:-2px}
+.day .n{color:var(--muted);margin-bottom:4px}
+.day.empty{background:var(--panel);opacity:.5}
+.m{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:4px 6px;margin-bottom:4px;color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.m small{display:block;color:var(--muted);font-size:11px}
+.m .sc{float:right;font-weight:700}
+.m.tbd{border-left-color:var(--muted);opacity:.8}
+.m.done{border-left-color:var(--win)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+th{color:var(--muted);font-weight:600;font-size:13px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.rate{display:flex;align-items:center;gap:8px;min-width:130px}
+.rate i{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;display:block}
+.rate i b{display:block;height:100%;background:var(--win)}
+.rate span{width:44px;text-align:right}
+.low{opacity:.5}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.empty-msg{text-align:center;color:var(--muted);padding:28px 8px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:420px;width:calc(100% - 32px)}
+dialog::backdrop{background:#0008}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--muted);font-size:12px}
+@media(max-width:760px){
+  .cal{display:block;background:none;border:0}
+  .dow,.day.empty,.day.none{display:none}
+  .day{margin-bottom:8px;border:1px solid var(--line);border-radius:10px;min-height:0}
+  .cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap top">
+  <div class="logo">OW 대회 통계</div>
+  <nav id="nav">
+    <button data-tab="schedule" class="on">일정</button>
+    <button data-tab="standings">순위표</button>
+    <button data-tab="teams">팀 맵 승률</button>
+    <button data-tab="players">선수 영웅 통계</button>
+    <button data-tab="compare">팀 비교</button>
+  </nav>
+  <span class="spacer"></span>
+  <label class="chk"><input type="checkbox" id="demo"> 가상 예시 데이터 보기</label>
+</div></header>
+
+<main class="wrap">
+  <div id="demoNotice" class="notice" hidden><b>가상 예시</b>입니다. 팀·선수·영웅 기록은 화면 확인용으로 만든 가짜 데이터이며 실제 경기 결과가 아닙니다.</div>
+
+  <!-- 일정 -->
+  <section id="tab-schedule">
+    <div class="bar">
+      <select id="fTour"></select>
+      <select id="fRegion"></select>
+      <label class="chk"><input type="checkbox" id="spoiler"> 스포일러 방지 (점수 숨기기)</label>
+    </div>
+    <div id="overview"></div>
+    <div class="month">
+      <button class="ghost" id="prev">◀</button><strong id="monthLabel"></strong><button class="ghost" id="next">▶</button>
+      <button class="ghost" id="todayBtn">오늘</button>
+    </div>
+    <div class="cal" id="cal"></div>
+    <p class="notice" style="margin-top:14px">경기 일정은 OWTICS 캘린더에서 확인한 항목입니다. 시작 시간은 한국 시간(KST)으로 확인된 경기에만 표시합니다. OWTICS의 날짜는 시간대가 달라 한국 날짜와 하루 어긋날 수 있으니 공식 출처로 다시 확인하세요.</p>
+  </section>
+
+  <!-- 순위표 -->
+  <section id="tab-standings" hidden>
+    <h2>정규 시즌 순위표</h2>
+    <div class="bar"><select id="stTour"></select></div>
+    <div class="card" id="stOut"></div>
+  </section>
+
+  <!-- 팀 -->
+  <section id="tab-teams" hidden>
+    <h2>팀별 맵 승률</h2>
+    <div class="bar">
+      <select id="teamSel"></select>
+      <label class="chk">최소 세트 수 <input type="number" id="minTeam" value="1" min="1" style="width:64px"></label>
+    </div>
+    <div class="card" id="teamOut"></div>
+  </section>
+
+  <!-- 선수 -->
+  <section id="tab-players" hidden>
+    <h2>선수별 영웅 픽률·승률</h2>
+    <div class="bar">
+      <select id="playerSel"></select>
+      <label class="chk">최소 사용 횟수 <input type="number" id="minPlayer" value="1" min="1" style="width:64px"></label>
+    </div>
+    <div class="card" id="playerOut"></div>
+  </section>
+
+  <!-- 비교 -->
+  <section id="tab-compare" hidden>
+    <h2>팀 비교 (맵 승률)</h2>
+    <div class="bar"><select id="cmpA"></select><span>vs</span><select id="cmpB"></select></div>
+    <div id="cmpOut"></div>
+  </section>
+</main>
+
+<dialog id="dlg"><div id="dlgBody"></div><p style="text-align:right;margin:12px 0 0"><button class="ghost" onclick="dlg.close()">닫기</button></p></dialog>
+
+<script>
+/* =========================================================
+   데이터 영역 — 여기만 고치면 화면이 전부 바뀝니다.
+   ========================================================= */
+
+// 일정 (OWTICS 캘린더에서 확인한 항목). sa/sb가 null이면 아직 안 치러진 경기.
+const REAL = {
+  matches: [
+    {id:'k0', stage:'LCQ', date:'2026-11-01', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'SEIJI ESPORTS', b:'RØDE ZANSIDE GAMING', sa:2, sb:3},
+    {id:'k1', stage:'시드 결정전', date:'2026-11-01', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'ZETA DIVISION', b:'Crazy Raccoon', sa:3, sb:2},
+    {id:'k2', stage:'시드 결정전', date:'2026-11-01', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'T1', b:'Cheeseburger', sa:3, sb:0},
+    {id:'c1', date:'2026-11-01', tour:'2026 OWCS CHINA STAGE 3', region:'China', a:'All Gamers', b:'Solus Victorem', sa:3, sb:0},
+    {id:'c2', date:'2026-11-01', tour:'2026 OWCS CHINA STAGE 3', region:'China', a:'Weibo Gaming', b:'JD Gaming', sa:3, sb:0},
+    {id:'n1', date:'2026-11-01', tour:'2026 OWCS NA STAGE 3', region:'NA', a:'Dallas Fuel', b:'Team Liquid', sa:4, sb:0},
+    {id:'p1', date:'2026-11-02', tour:'2026 OWCS ASIA - PACIFIC STAGE 3', region:'Pacific', a:'The Gatos Guapos', b:'Team Benxxn', sa:3, sb:0},
+    {id:'p2', date:'2026-11-02', tour:'2026 OWCS ASIA - PACIFIC STAGE 3', region:'Pacific', a:'SeijiKING', b:'junjilopzfx0764', sa:3, sb:2},
+    {id:'k3', stage:'플레이오프 8강 (FT4)', date:'2026-11-06', time:'17:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'T1', b:'RØDE ZANSIDE GAMING', sa:null, sb:null},
+    {id:'k4', stage:'플레이오프 8강 (FT4)', date:'2026-11-06', time:'19:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'Cheeseburger', b:'Team Falcons', sa:null, sb:null},
+    {id:'k5', stage:'플레이오프 4강 (FT4) · 상대는 1시드가 선택', date:'2026-11-07', time:'15:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'ZETA DIVISION', b:'TBD', sa:null, sb:null},
+    {id:'k6', stage:'플레이오프 4강 (FT4)', date:'2026-11-07', time:'17:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'Crazy Raccoon', b:'TBD', sa:null, sb:null},
+    {id:'k7', stage:'11/8 경기 (3·4위전·결승, 순서 미확인)', date:'2026-11-08', time:'15:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'TBD', b:'TBD', sa:null, sb:null},
+    {id:'k8', stage:'11/8 경기 (3·4위전·결승, 순서 미확인)', date:'2026-11-08', time:'17:00', tour:'2026 OWCS ASIA - KOREA STAGE 3', region:'Korea', a:'TBD', b:'TBD', sa:null, sb:null},
+  ],
+  // 세트(맵) 기록: {match, map, winner}    ← Liquipedia에서 확인한 뒤 채우세요
+  // 출처: OWTICS 경기 페이지 #2803(k0), #2804(k1), #2805(k2)
+  games: [
+    {match:'k0', map:'사모아',         mode:'쟁탈',         winner:'RØDE ZANSIDE GAMING'},
+    {match:'k0', map:'샴발리 수도원',   mode:'호위',         winner:'SEIJI ESPORTS'},
+    {match:'k0', map:'콜로세오',       mode:'밀기',         winner:'SEIJI ESPORTS'},
+    {match:'k0', map:'아틀리스',       mode:'플래시포인트', winner:'RØDE ZANSIDE GAMING'},
+    {match:'k0', map:'아이헨발데',     mode:'혼합',         winner:'RØDE ZANSIDE GAMING'},
+    {match:'k1', map:'사모아',         mode:'쟁탈',         winner:'Crazy Raccoon'},
+    {match:'k1', map:'66번 국도',      mode:'호위',         winner:'ZETA DIVISION'},
+    {match:'k1', map:'네온 교차로',    mode:'혼합',         winner:'Crazy Raccoon'},
+    {match:'k1', map:'뉴 정크 시티',   mode:'플래시포인트', winner:'ZETA DIVISION'},
+    {match:'k1', map:'이스페란사',     mode:'밀기',         winner:'ZETA DIVISION'},
+    {match:'k2', map:'부산',           mode:'쟁탈',         winner:'T1'},
+    {match:'k2', map:'66번 국도',      mode:'호위',         winner:'T1'},
+    {match:'k2', map:'아이헨발데',     mode:'혼합',         winner:'T1'}
+  ],
+  // 선수 기록(경기 단위): {match, team, player, heroes:[...]}
+  // OWTICS 경기 페이지의 '전체' 영웅 표 기준. 세트별 영웅이 아니라 경기 전체에서 쓴 영웅 목록입니다.
+  playerMatches: []
+};
+// 10월 정규 시즌 결과 (OWTICS 캘린더, 경기 번호 #2761~2802). 점수만 있고 맵·영웅 기록은 없음.
+(function(){
+  const T='2026 OWCS ASIA - KOREA STAGE 3';
+  const CB='Cheeseburger', PF='POKER FACE', TF='Team Falcons', ZD='ZETA DIVISION', SE='SEIJI ESPORTS', RZ='RØDE ZANSIDE GAMING', CR='Crazy Raccoon', O2='O2 Blast';
+  [
+   ['10-02',CB,PF,3,0],['10-02',TF,ZD,0,3],['10-02',SE,'T1',0,3],
+   ['10-03',CB,RZ,3,0],['10-03','T1',ZD,1,3],['10-03',CR,O2,3,0],
+   ['10-04',O2,SE,3,1],['10-04',CR,RZ,3,1],['10-04',TF,PF,3,0],
+   ['10-09',TF,O2,3,0],['10-09',PF,'T1',0,3],['10-09',SE,ZD,0,3],
+   ['10-10',SE,RZ,3,1],['10-10',CR,'T1',3,1],['10-10',CB,TF,3,1],
+   ['10-11',O2,RZ,2,3],['10-11',CB,CR,1,3],['10-11',PF,ZD,0,3],
+   ['10-16',TF,SE,3,0],['10-16',CB,'T1',0,3],['10-16',O2,ZD,0,3],
+   ['10-17',O2,PF,2,3],['10-17',CR,TF,3,0],['10-17','T1',RZ,3,0],
+   ['10-18',CB,SE,3,0],['10-18',CR,PF,3,0],['10-18',RZ,ZD,0,3],
+   ['10-23',CB,O2,3,0],['10-23',TF,RZ,3,0],['10-23',CR,SE,3,0],
+   ['10-24',CB,ZD,2,3],['10-24',TF,'T1',1,3],['10-24',PF,SE,2,3],
+   ['10-25',PF,RZ,2,3],['10-25',O2,'T1',0,3],['10-25',ZD,CR,3,1],
+   ['10-30',TF,SE,3,0],['10-30',ZD,CB,3,0],['10-30',CR,'T1',3,1],
+   ['10-31',RZ,O2,3,1],['10-31',ZD,'T1',3,0],['10-31',CR,CB,3,0]
+  ].forEach((r,i)=>REAL.matches.push({id:'o'+(2761+i), date:'2026-'+r[0], tour:T, region:'Korea', reg:i<36, stage:i<36?'정규 시즌':([36,39].includes(i)?'LCQ':'시드 결정전'), a:r[1], b:r[2], sa:r[3], sb:r[4]}));
+})();
+(function(){
+  const add = (match, team, obj) => Object.entries(obj).forEach(([player, heroes]) => REAL.playerMatches.push({match, team, player, heroes}));
+  add('k0','SEIJI ESPORTS',{SENTIER:['오리사','D.Mon','자리야'], D4RT:['트레이서','시메트라','한조'], M1NUT2:['캐서디','시온','바스티온'], Lavender:['독트린','키리코','주노'], OFF:['제트팩 캣']});
+  add('k0','RØDE ZANSIDE GAMING',{HEESUNG:['D.Mon','오리사'], HEISER:['오리사','D.Mon','레킹볼'], Kilo:['캐서디','위도우메이커','시온'], Taejong:['트레이서','시메트라','겐지'], IRONY:['독트린','키리코'], OPENER:['제트팩 캣','브리기테','키리코']});
+  add('k1','ZETA DIVISION',{Bernar:['D.Va','D.Mon','오리사'], Knife:['소전','캐서디','바스티온'], Proper:['트레이서','겐지','캐서디'], shu:['독트린','아나','루시우'], Viol2t:['제트팩 캣','키리코','주노']});
+  add('k1','Crazy Raccoon',{JunBin:['윈스턴','D.Mon','오리사'], MAX:['D.Va','시그마','D.Mon'], HeeSang:['트레이서','바스티온','벤데타'], Stalk3r:['캐서디','소전','바스티온'], LIP:['독트린','키리코','아나'], CH0R0NG:['제트팩 캣','루시우','라이프위버']});
+  add('k2','T1',{DONGHAK:['D.Mon','D.Va','오리사'], Proud:['캐서디','소전','바스티온'], ZEST:['트레이서','바스티온','시메트라'], Bliss:['제트팩 캣','독트린'], skewed:['독트린','키리코','젠야타']});
+  add('k2','Cheeseburger',{Belosrea:['D.Mon','오리사','윈스턴'], AZENT:['트레이서'], K4NE:['캐서디','소전','바스티온'], Profit:['겐지','트레이서','시메트라'], TenTen:['제트팩 캣','독트린'], Trest:['독트린','키리코','루시우']});
+  // 10월 경기 5건 (T1 / ZETA / Crazy Raccoon 상호 대결)
+  add('o2765','T1',{DONGHAK:['D.Mon','D.Va','윈스턴'], Proud:['시온','캐서디','바스티온'], ZEST:['트레이서','벤데타','시메트라'], Bliss:['제트팩 캣','루시우'], skewed:['아나','키리코']});
+  add('o2765','ZETA DIVISION',{Bernar:['D.Mon','D.Va','오리사'], Knife:['캐서디','시온','바스티온'], Proper:['트레이서','시온','시메트라'], shu:['아나','키리코','루시우'], Viol2t:['제트팩 캣','키리코','젠야타']});
+  add('o2801','ZETA DIVISION',{Bernar:['오리사','D.Mon','D.Va'], Knife:['소전','캐서디','시온'], Proper:['겐지','트레이서','시메트라'], shu:['독트린','메르시'], Viol2t:['키리코','제트팩 캣','주노']});
+  add('o2801','T1',{DONGHAK:['오리사','마우가','자리야'], Proud:['소전','캐서디','시메트라'], ZEST:['겐지','트레이서','벤데타'], Bliss:['독트린'], skewed:['키리코','주노']});
+  add('o2796','ZETA DIVISION',{Bernar:['오리사','D.Va','D.Mon'], Knife:['소전','바스티온','캐서디'], Proper:['트레이서','리퍼','시온'], shu:['독트린','아나'], Viol2t:['키리코','제트팩 캣','루시우']});
+  add('o2796','Crazy Raccoon',{JunBin:['윈스턴','오리사'], MAX:['오리사','D.Va','자리야'], HeeSang:['트레이서','겐지','시메트라'], Stalk3r:['소전','캐서디','바스티온'], CH0R0NG:['제트팩 캣','루시우','키리코'], vigilante:['키리코','독트린','젠야타']});
+  add('o2774','Crazy Raccoon',{JunBin:['레킹볼','윈스턴','D.Mon'], MAX:['자리야','D.Va','라마트라'], HeeSang:['트레이서','안란','겐지'], Stalk3r:['트레이서','바스티온','캐서디'], LIP:['독트린','솜브라','아나'], CH0R0NG:['제트팩 캣','독트린','루시우']});
+  add('o2774','T1',{DONGHAK:['정커퀸','D.Mon','윈스턴'], Proud:['캐서디','시온','바스티온'], ZEST:['트레이서','시온','벤처'], Bliss:['제트팩 캣','독트린','루시우'], skewed:['솜브라','키리코','주노']});
+  add('o2799','Crazy Raccoon',{JunBin:['D.Mon','레킹볼','오리사'], MAX:['자리야','D.Va','D.Mon'], HeeSang:['바스티온','트레이서','시온'], Stalk3r:['캐서디','바스티온','소전'], LIP:['독트린','키리코','아나'], CH0R0NG:['제트팩 캣','주노']});
+  add('o2799','T1',{DONGHAK:['D.Mon','해저드','레킹볼'], Jasm1ne:['자리야','오리사'], Proud:['바스티온','소전','캐서디'], ZEST:['트레이서','겐지','바스티온'], Bliss:['제트팩 캣','독트린'], skewed:['독트린','키리코','루시우']});
+  const g = (match, rows) => rows.forEach(r => REAL.games.push({match, map:r[0], mode:r[1], winner:r[2]}));
+  const T1='T1', ZD='ZETA DIVISION', CR='Crazy Raccoon';
+  g('o2765',[['부산','쟁탈',T1],['66번 국도','호위',ZD],['아틀리스','플래시포인트',ZD],['이스페란사','밀기',ZD]]);
+  g('o2801',[['사모아','쟁탈',ZD],['아틀리스','플래시포인트',ZD],['샴발리 수도원','호위',ZD]]);
+  g('o2796',[['사모아','쟁탈',ZD],['수라바사','플래시포인트',CR],['66번 국도','호위',ZD],['네온 교차로','혼합',ZD]]);
+  g('o2774',[['부산','쟁탈',CR],['아틀리스','플래시포인트',T1],['이스페란사','밀기',CR],['네온 교차로','혼합',CR]]);
+  g('o2799',[['부산','쟁탈',CR],['아틀리스','플래시포인트',T1],['네온 교차로','혼합',CR],['샴발리 수도원','호위',CR]]);
+})();
+
+// 대회 개요 (사용자가 제공한 일정 정보)
+const TOURNAMENTS = [
+  {name:'OWCS 코리아 스테이지 3', period:'2026-10-02 ~ 2026-11-08', note:'정규 시즌 및 플레이오프 · 서울 홍대 WDG 스튜디오',
+   teams:['ZETA DIVISION','Crazy Raccoon','T1','RØDE ZANSIDE GAMING','Team Falcons','O2 Blast','CHEESEBURGER','POKER FACE','RTplz']},
+  {name:'OWCS 아시아 스테이지 3 · 그룹 스테이지', period:'2026-11-11 ~ 2026-11-13', note:'그룹 및 메인 스테이지'},
+  {name:'OWCS 아시아 스테이지 3 · 메인 스테이지(파이널)', period:'2026-11-20 ~ 2026-11-22', note:''}
+];
+
+// 화면 확인용 가상 데이터 (실제 아님)
+const DEMO = (() => {
+  const maps = ['눔바니','감시기지: 지브롤터','왕의 길','미드타운','이스페란사','서킷 로얄'];
+  const teams = ['예시팀 A','예시팀 B','예시팀 C'];
+  const pl = {'예시팀 A':['선수1','선수2'],'예시팀 B':['선수3','선수4'],'예시팀 C':['선수5','선수6']};
+  const heroes = {'선수1':['트레이서','솜브라','리퍼'],'선수2':['아나','키리코'],'선수3':['위도우메이커','한조'],'선수4':['루시우','메르시'],'선수5':['라인하르트','오리사'],'선수6':['디바','윈스턴']};
+  let seed = 7; const rnd = () => (seed = (seed*9301+49297)%233280)/233280;
+  const matches=[], games=[], playerGames=[];
+  let id=0;
+  [['예시팀 A','예시팀 B'],['예시팀 B','예시팀 C'],['예시팀 A','예시팀 C'],['예시팀 C','예시팀 B'],['예시팀 B','예시팀 A']].forEach((p,i)=>{
+    const mid='d'+(++id); let sa=0,sb=0;
+    for(let s=0;s<5 && sa<3 && sb<3;s++){
+      const w = rnd()<0.5 ? p[0] : p[1]; w===p[0]?sa++:sb++;
+      const map = maps[Math.floor(rnd()*maps.length)];
+      games.push({match:mid,map,winner:w,a:p[0],b:p[1]});
+      p.forEach(t=>pl[t].forEach(n=>{
+        const hs=heroes[n]; playerGames.push({match:mid,player:n,team:t,hero:hs[Math.floor(rnd()*hs.length)],win:t===w});
+      }));
+    }
+    matches.push({id:mid,date:'2026-11-0'+(2+i),tour:'가상 리그',region:'Demo',reg:true,a:p[0],b:p[1],sa,sb});
+  });
+  const pm = {};
+  playerGames.forEach(r=>{
+    const k = r.match+'|'+r.player;
+    (pm[k] ||= {match:r.match, team:r.team, player:r.player, heroes:[]});
+    if(!pm[k].heroes.includes(r.hero)) pm[k].heroes.push(r.hero);
+  });
+  return {matches,games,playerMatches:Object.values(pm)};
+})();
+
+/* =========================================================
+   아래는 화면/계산 코드
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const dlg = $('#dlg');
+let view = {y:2026, m:10}; // 2026년 11월 (월은 0부터)
+const D = () => $('#demo').checked ? DEMO : REAL;
+const pct = (w,n) => n ? Math.round(w/n*100) : 0;
+
+function rateCell(w,n){
+  const p = pct(w,n);
+  return `<div class="rate"><i><b style="width:${p}%"></b></i><span>${p}%</span></div>`;
+}
+
+/* ----- 탭 ----- */
+$('#nav').addEventListener('click', e=>{
+  const t = e.target.dataset.tab; if(!t) return;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b===e.target));
+  ['schedule','standings','teams','players','compare'].forEach(x=>$('#tab-'+x).hidden = x!==t);
+  render();
+});
+$('#demo').addEventListener('change', ()=>{ initFilters(); render(); });
+
+/* ----- 필터 초기화 ----- */
+function fill(sel, items, allLabel){
+  const cur = sel.value;
+  sel.innerHTML = (allLabel?`<option value="">${allLabel}</option>`:'') + items.map(i=>`<option>${i}</option>`).join('');
+  if(items.includes(cur) || (allLabel && cur==='')) sel.value = cur;
+}
+function teamList(){
+  const d=D(); const s=new Set();
+  d.matches.forEach(m=>{ if(m.a!=='TBD') s.add(m.a); if(m.b!=='TBD') s.add(m.b); });
+  return [...s].sort();
+}
+function initFilters(){
+  const d=D();
+  $('#demoNotice').hidden = !$('#demo').checked;
+  fill($('#fTour'), [...new Set(d.matches.map(m=>m.tour))], '전체 대회');
+  fill($('#fRegion'), [...new Set(d.matches.map(m=>m.region))], '전체 지역');
+  const t = teamList();
+  fill($('#teamSel'), t); fill($('#cmpA'), t); fill($('#cmpB'), t);
+  fill($('#stTour'), [...new Set(d.matches.filter(m=>m.reg).map(m=>m.tour))]);
+  if(t.length>1 && $('#cmpA').value===$('#cmpB').value) $('#cmpB').selectedIndex = 1;
+  fill($('#playerSel'), [...new Set(d.playerMatches.map(p=>p.player))].sort((a,b)=>a.localeCompare(b)));
+  if($('#demo').checked) view = {y:2026,m:10};
+}
+['fTour','fRegion','spoiler'].forEach(i=>$('#'+i).addEventListener('change', render));
+['stTour','teamSel','minTeam','playerSel','minPlayer','cmpA','cmpB'].forEach(i=>$('#'+i).addEventListener('input', render));
+$('#prev').onclick = ()=>{ view.m--; if(view.m<0){view.m=11;view.y--;} render(); };
+$('#next').onclick = ()=>{ view.m++; if(view.m>11){view.m=0;view.y++;} render(); };
+$('#todayBtn').onclick = ()=>{ const n=new Date(); view={y:n.getFullYear(),m:n.getMonth()}; render(); };
+
+/* ----- 일정 ----- */
+function renderSchedule(){
+  const d=D(), ft=$('#fTour').value, fr=$('#fRegion').value, hide=$('#spoiler').checked;
+  $('#overview').innerHTML = $('#demo').checked ? '' : `<div class="card">${TOURNAMENTS.map(t=>`<div style="margin-bottom:8px"><strong>${t.name}</strong> <span class="tag">${t.period}</span>${t.note?`<div style="color:var(--muted);font-size:13px">${t.note}</div>`:''}${t.teams?`<div style="font-size:13px;margin-top:2px">참가 팀 ${t.teams.length}개: ${t.teams.join(', ')}</div>`:''}</div>`).join('')}</div>`;
+  $('#monthLabel').textContent = `${view.y}년 ${view.m+1}월`;
+  const first = new Date(view.y, view.m, 1), days = new Date(view.y, view.m+1, 0).getDate();
+  const today = new Date(), tkey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  let html = ['일','월','화','수','목','금','토'].map(x=>`<div class="dow">${x}</div>`).join('');
+  for(let i=0;i<first.getDay();i++) html += '<div class="day empty"></div>';
+  for(let day=1; day<=days; day++){
+    const key = `${view.y}-${String(view.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const ms = d.matches.filter(m=>m.date===key && (!ft||m.tour===ft) && (!fr||m.region===fr));
+    html += `<div class="day ${key===tkey?'today':''} ${ms.length?'':'none'}"><div class="n">${view.m+1}/${day}</div>` +
+      ms.map(m=>{
+        const played = m.sa!=null;
+        const sc = played ? (hide?'<span class="sc">?</span>':`<span class="sc">${m.sa}:${m.sb}</span>`) : '<span class="sc">vs</span>';
+        return `<button class="m ${played?'done':'tbd'}" data-id="${m.id}">${sc}${m.a}<br>${m.b}<small>${m.time && !played ? m.time+' (KST) · ' : ''}${m.tour.replace('2026 OWCS ','')}</small></button>`;
+      }).join('') + '</div>';
+  }
+  $('#cal').innerHTML = html;
+  $('#cal').querySelectorAll('.m').forEach(b=>b.onclick=()=>openMatch(b.dataset.id));
+}
+function openMatch(id){
+  const d=D(), m=d.matches.find(x=>x.id===id), hide=$('#spoiler').checked;
+  const gs = d.games.filter(g=>g.match===id);
+  $('#dlgBody').innerHTML = `
+    <h3 style="margin:0 0 4px">${m.a} vs ${m.b}</h3>
+    <div class="tag">${m.tour}</div> ${m.stage?`<div class="tag">${m.stage}</div> `:''}<div class="tag">${m.date}${m.time ? ' '+m.time+' (KST)' : ''}</div>
+    <p style="font-size:22px;font-weight:800;margin:12px 0">${m.sa==null?'예정':(hide?'점수 숨김':`${m.sa} : ${m.sb}`)}</p>
+    ${gs.length ? `<table><tr><th>세트</th><th>맵</th><th>승자</th></tr>${gs.map((g,i)=>`<tr><td>${i+1}</td><td>${g.map}</td><td>${hide?'-':g.winner}</td></tr>`).join('')}</table>`
+      : '<p style="color:var(--muted);margin:0">세트별 맵 기록이 아직 없습니다.</p>'}`;
+  dlg.showModal();
+}
+
+/* ----- 순위표 ----- */
+function renderStandings(){
+  const tour=$('#stTour').value;
+  const t={};
+  D().matches.filter(m=>m.reg && m.tour===tour && m.sa!=null).forEach(m=>{
+    [[m.a,m.sa,m.sb],[m.b,m.sb,m.sa]].forEach(([n,f,a])=>{
+      const s = t[n] ||= {n,w:0,l:0,sw:0,sl:0};
+      s.sw+=f; s.sl+=a; f>a ? s.w++ : s.l++;
+    });
+  });
+  const ms = D().matches.filter(m=>m.reg && m.tour===tour && m.sa!=null);
+  const h2h = (x,y)=>{ let d=0; ms.forEach(m=>{ if(m.a===x&&m.b===y) d+=m.sa>m.sb?1:-1; else if(m.a===y&&m.b===x) d+=m.sb>m.sa?1:-1; }); return d; };
+  const rows = Object.values(t).sort((x,y)=>y.w-x.w || (y.sw-y.sl)-(x.sw-x.sl) || h2h(y.n,x.n) || y.sw-x.sw);
+  $('#stOut').innerHTML = rows.length ? `<table><tr><th class="num">#</th><th>팀</th><th class="num">경기</th><th class="num">승</th><th class="num">패</th><th>승률</th><th class="num">세트 득실</th></tr>` +
+    rows.map((s,i)=>`<tr><td class="num">${i+1}</td><td>${s.n}</td><td class="num">${s.w+s.l}</td><td class="num">${s.w}</td><td class="num">${s.l}</td><td>${rateCell(s.w,s.w+s.l)}</td><td class="num">${s.sw}-${s.sl} (${s.sw-s.sl>0?'+':''}${s.sw-s.sl})</td></tr>`).join('') +
+    `</table><p style="color:var(--muted);font-size:12px;margin:10px 0 0">정규 시즌(1차 라운드 로빈) 경기만 집계합니다. 시드 결정전·LCQ·플레이오프는 제외했습니다. 정렬은 승수 → 세트 득실 → 상대 전적 순이며, 커뮤니티 설명글(공식 규정 아님) 기준입니다.</p>`
+    : '<div class="empty-msg">집계할 정규 시즌 경기가 없습니다.</div>';
+}
+
+/* ----- 팀 맵 승률 ----- */
+function mapStats(team){
+  const st={};
+  D().games.forEach(g=>{
+    const m = D().matches.find(x=>x.id===g.match); if(!m) return;
+    if(m.a!==team && m.b!==team) return;
+    const s = st[g.map] ||= {w:0,n:0}; s.n++; if(g.winner===team) s.w++;
+  });
+  return st;
+}
+function renderTeams(){
+  const team=$('#teamSel').value, min=+$('#minTeam').value||1;
+  const st = mapStats(team);
+  const rows = Object.entries(st).filter(([,s])=>s.n>=min).sort((a,b)=>pct(b[1].w,b[1].n)-pct(a[1].w,a[1].n)||b[1].n-a[1].n);
+  $('#teamOut').innerHTML = rows.length ? `<table><tr><th>맵</th><th class="num">세트</th><th class="num">승</th><th class="num">패</th><th>승률</th></tr>` +
+    rows.map(([map,s])=>`<tr class="${s.n<3?'low':''}"><td>${map}</td><td class="num">${s.n}</td><td class="num">${s.w}</td><td class="num">${s.n-s.w}</td><td>${rateCell(s.w,s.n)}</td></tr>`).join('') +
+    `</table><p style="color:var(--muted);font-size:12px;margin:10px 0 0">세트 수가 3 미만인 줄은 흐리게 표시됩니다. 표본이 적으면 승률이 크게 흔들립니다.</p>`
+    : `<div class="empty-msg">아직 맵 기록이 없습니다.<br>데이터 영역의 <code>games</code>에 세트 결과를 추가하면 여기에 표시됩니다.<br>화면을 먼저 보려면 위의 “가상 예시 데이터 보기”를 켜세요.</div>`;
+}
+
+/* ----- 선수 영웅 통계 ----- */
+function renderPlayers(){
+  const p=$('#playerSel').value, min=+$('#minPlayer').value||1;
+  const d = D();
+  const rec = d.playerMatches.filter(x=>x.player===p && d.matches.find(m=>m.id===x.match && m.sa!=null));
+  const total = rec.length, st={};
+  rec.forEach(r=>{
+    const m = d.matches.find(x=>x.id===r.match);
+    const win = r.team===m.a ? m.sa>m.sb : m.sb>m.sa;
+    r.heroes.forEach(h=>{ const s=st[h] ||= {w:0,n:0}; s.n++; if(win) s.w++; });
+  });
+  const rows = Object.entries(st).filter(([,s])=>s.n>=min).sort((a,b)=>b[1].n-a[1].n);
+  $('#playerOut').innerHTML = rows.length ? `<p style="margin:0 0 10px;color:var(--muted)">${p} · ${rec[0].team} · 출전 ${total}경기</p>
+    <table><tr><th>영웅</th><th class="num">사용 경기</th><th>사용 비율</th><th class="num">승</th><th class="num">패</th><th>경기 승률</th></tr>` +
+    rows.map(([h,s])=>`<tr class="${s.n<3?'low':''}"><td>${h}</td><td class="num">${s.n}</td><td>${rateCell(s.n,total)}</td><td class="num">${s.w}</td><td class="num">${s.n-s.w}</td><td>${rateCell(s.w,s.n)}</td></tr>`).join('') +
+    `</table><p style="color:var(--muted);font-size:12px;margin:10px 0 0">경기 단위 기준입니다. 한 경기에서 여러 영웅을 쓰면 각 영웅이 1경기로 집계되고, 그 경기의 승패가 모든 영웅에 똑같이 적용됩니다. 세트별 영웅 승률이 아닙니다.</p>`
+    : `<div class="empty-msg">아직 선수 기록이 없습니다.<br>데이터 영역의 <code>playerMatches</code>에 경기별 사용 영웅을 추가하면 표시됩니다.<br>화면을 먼저 보려면 위의 “가상 예시 데이터 보기”를 켜세요.</div>`;
+}
+
+/* ----- 팀 비교 ----- */
+function renderCompare(){
+  const a=$('#cmpA').value, b=$('#cmpB').value;
+  const sa=mapStats(a), sb=mapStats(b);
+  const maps=[...new Set([...Object.keys(sa),...Object.keys(sb)])].sort();
+  const col=(name,st)=>`<div class="card"><h3 style="margin:0 0 10px">${name}</h3>` + (maps.length ? `<table><tr><th>맵</th><th class="num">전적</th><th>승률</th></tr>` +
+    maps.map(m=>{const s=st[m]; return s?`<tr><td>${m}</td><td class="num">${s.w}-${s.n-s.w}</td><td>${rateCell(s.w,s.n)}</td></tr>`:`<tr><td>${m}</td><td class="num">-</td><td style="color:var(--muted)">기록 없음</td></tr>`}).join('') + '</table>' : '<div class="empty-msg">맵 기록 없음</div>') + '</div>';
+  $('#cmpOut').innerHTML = `<div class="cols">${col(a,sa)}${col(b,sb)}</div>`;
+}
+
+function render(){
+  if(!$('#tab-schedule').hidden) renderSchedule();
+  if(!$('#tab-standings').hidden) renderStandings();
+  if(!$('#tab-teams').hidden) renderTeams();
+  if(!$('#tab-players').hidden) renderPlayers();
+  if(!$('#tab-compare').hidden) renderCompare();
+}
+initFilters(); render();
+</script>
+</body>
+</html>
