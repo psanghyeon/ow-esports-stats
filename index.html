@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OW 대회 통계</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1218">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="OW 통계">
 <style>
 :root{
   --bg:#0f1218; --panel:#171c26; --line:#262d3b; --text:#e8ecf3; --muted:#8b95a7;
@@ -429,6 +435,11 @@ function render(){
   if(!$('#tab-compare').hidden) renderCompare();
 }
 initFilters(); render();
+
+// 설치형 앱(PWA): https 주소에서만 동작합니다. 파일을 더블클릭해서 열 때는 건너뜁니다.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
